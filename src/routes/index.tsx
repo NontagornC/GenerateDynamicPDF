@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import DynamicGeneratePDF from "@/components/GenerateDynamicPDF/View";
+import DynamicGeneratePDF from "@/page/GenerateDynamicPDF/View";
 
 const index = () => {
   return (

@@ -1,15 +1,19 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import jsPDF from "jspdf";
-import { useEffect, useRef, useState } from "react";
 import Draggable, { DraggableData, DraggableEvent } from "react-draggable";
+import ViewModel from "./ViewModel";
+import { useEffect } from "react";
 import styled from "styled-components";
 
 const View = () => {
-  const dragAreaRef = useRef<HTMLDivElement>(null);
-  const [deltaPosition, setDeltaPosition] = useState({ x: 0, y: 0 });
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-  const [useItemList, setItemList] = useState([]);
+  const {
+    deltaPosition,
+    setDeltaPosition,
+    position,
+    setPosition,
+    setItemList,
+    dragAreaRef,
+    useItemList,
+  } = ViewModel();
 
   const isInXAxisArea = (xAxis: number) => {
     if (xAxis >= 0 && xAxis <= 595) {
@@ -67,71 +71,6 @@ const View = () => {
     }
   };
 
-  function pxToMm(px: number): number {
-    return px * 0.35; // แปลงพิกเซลเป็นมิลลิเมตร
-  }
-
-  const convertXAxisToMM = (pxNumber: number) => {
-    if (pxToMm(pxNumber) < 10) {
-      return 10;
-    } else if (pxToMm(pxNumber) > 200) {
-      return 200;
-    } else {
-      return pxToMm(pxNumber);
-    }
-  };
-
-  const convertYAxisToMM = (pxNumber: number) => {
-    if (pxToMm(pxNumber) < 10) {
-      return 10;
-    } else if (pxToMm(pxNumber) > 287) {
-      return 287;
-    } else {
-      return pxToMm(pxNumber);
-    }
-  };
-
-  function generatePDF() {
-    const doc = new jsPDF({
-      orientation: "portrait", // 'landscape'
-      unit: "mm", // ใช้มิลลิเมตรเป็นหน่วย
-      format: "a4", // ขนาด A4
-    });
-
-    const textArr = [
-      // มุมบนซ้าย
-      {
-        x: convertXAxisToMM(0),
-        y: convertYAxisToMM(0),
-      },
-      // มุมบนขวา
-      {
-        x: convertXAxisToMM(595),
-        y: convertYAxisToMM(0),
-      },
-      // มุมล่างซ้าย
-      {
-        x: convertXAxisToMM(0),
-        y: convertYAxisToMM(842),
-      },
-      // มุมล่างขวา
-      {
-        x: convertXAxisToMM(595),
-        y: convertYAxisToMM(842),
-      },
-    ];
-
-    useItemList.forEach((item) => {
-      doc.text(
-        String(item?.value),
-        convertXAxisToMM(item.x),
-        convertYAxisToMM(item.y)
-      );
-    });
-
-    doc.save("my-pdf.pdf");
-  }
-
   const dragHandlers = { onStart, onStop };
 
   useEffect(() => {
@@ -143,23 +82,8 @@ const View = () => {
       });
     }
   }, [dragAreaRef.current]);
-
-  useEffect(() => {
-    console.log(useItemList, "useItemList");
-  }, [useItemList]);
-
   return (
-    <div className=" relative flex min-h-screen w-full bg-outline-grey p-6">
-      <div className=" flex min-h-full min-w-[300px] flex-col rounded-3xl bg-white-surface">
-        <button
-          onClick={() => {
-            generatePDF();
-          }}
-        >
-          Click to Export
-        </button>
-      </div>
-
+    <>
       <div className="flex h-full w-full flex-1 items-center justify-center bg-outline-grey p-6">
         <DragArea
           ref={dragAreaRef}
@@ -201,7 +125,7 @@ const View = () => {
           222 x: {deltaPosition.x.toFixed(0)}, y: {deltaPosition.y.toFixed(0)}
         </div>
       </Draggable>
-    </div>
+    </>
   );
 };
 
