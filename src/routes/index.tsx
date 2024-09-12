@@ -1,11 +1,11 @@
 import { Routes, Route } from "react-router-dom";
+import DynamicGeneratePDF from "@/components/GenerateDynamicPDF/View";
 
 const index = () => {
   return (
     <>
       <Routes>
-        <Route path="/" element={<div>hello home</div>} />
-        <Route path="/mock page 2" element={<div>mock page 2</div>} />
+        <Route path="/" element={<DynamicGeneratePDF />} />
       </Routes>
     </>
   );
