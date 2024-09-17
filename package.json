@@ -10,6 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@mui/joy": "^5.0.0-beta.36",
+    "@mui/lab": "^5.0.0-alpha.140",
+    "@mui/material": "^5.16.7",
+    "@mui/styled-engine": "^5.10.8",
+    "@mui/styled-engine-sc": "^5.10.6",
+    "@mui/x-date-pickers": "6.0.2",
     "@reduxjs/toolkit": "^2.1.0",
     "chart.js": "^4.4.4",
     "jspdf": "^2.5.1",

@@ -5,6 +5,7 @@ import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { mockData } from "@/assets/mockData";
 import { findKeyValue } from "@/utils";
+import Tooltip from "@mui/material/Tooltip";
 
 const DraggableProvider = () => {
   return (
@@ -150,8 +151,13 @@ const View = () => {
   // สร้าง state เพื่อเก็บ items ที่ถูกเลือก
   const [selectedItems, setSelectedItems] = useState([]);
 
+  const getValuesByKey = (data, key) => {
+    return data.map((item) => item[key]); // ดึงค่าออกมาตาม key ที่ระบุ
+  };
+
   // ฟังก์ชันเพื่อจัดการการเลือกหรือยกเลิก checkbox
   const handleCheckboxChange = (item) => {
+    const dataValue = getValuesByKey(mockData, item);
     setSelectedItems((prev) => {
       const foundItem = prev.find((i) => i.id === item);
       if (foundItem) {
@@ -165,7 +171,7 @@ const View = () => {
             id: item,
             title: item,
             type: item,
-            data: item,
+            data: dataValue,
             left: 0,
             top: 0,
           },
@@ -223,14 +229,38 @@ const View = () => {
                     left={item.left}
                     top={item.top}
                   >
-                    {item?.data}
+                    <Tooltip
+                      title={
+                        <div className="p-1 flex justify-center items-center relative">
+                          {item?.id}
+                          <div
+                            onClick={() => {
+                              console.log("click tooltips");
+                              handleCheckboxChange(item?.id);
+                            }}
+                            className="w-[12px] h-[12px] flex justify-center items-center absolute rounded-full bg-red-600 -top-[7px] -right-[12px]"
+                          >
+                            x
+                          </div>
+                        </div>
+                      }
+                      placement="top"
+                      arrow
+                    >
+                      <div className="flex flex-col gap-1 relative">
+                        {item?.data &&
+                          item?.data?.length > 0 &&
+                          item?.data?.map((itemValue, j) => {
+                            return <span key={j + item?.id}>{itemValue}</span>;
+                          })}
+                      </div>
+                    </Tooltip>
                   </DraggableItem>
                 );
               })}
           </div>
         </div>
       </div>
-      <span>2</span>
     </>
   );
 };
