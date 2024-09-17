@@ -73,8 +73,8 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     top,
     opacity: isDragging ? 0.5 : 1,
     cursor: "move",
-    padding: "10px",
-    border: "1px solid #ccc",
+    padding: isDragging ? "none" : "10px",
+    //     border: "1px solid #ccc",
     borderRadius: "5px",
     backgroundColor: "white",
   };
@@ -152,7 +152,7 @@ const View = () => {
   const [selectedItems, setSelectedItems] = useState([]);
 
   const getValuesByKey = (data, key) => {
-    return data.map((item) => item[key]); // ดึงค่าออกมาตาม key ที่ระบุ
+    return data.map((item) => item[key] || "-"); // ดึงค่าออกมาตาม key ที่ระบุ
   };
 
   // ฟังก์ชันเพื่อจัดการการเลือกหรือยกเลิก checkbox
