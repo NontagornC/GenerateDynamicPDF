@@ -1,8 +1,10 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import { mockData } from "@/assets/mockData";
+import { findKeyValue } from "@/utils";
 
 const DraggableProvider = () => {
   return (
@@ -20,32 +22,32 @@ interface DraggableItemProps {
 }
 
 // Types
-interface ChartDataItem {
-  name: string;
-  sales: number;
-  expenses: number;
-}
+// interface ChartDataItem {
+//   name: string;
+//   sales: number;
+//   expenses: number;
+// }
 
-interface TableColumn {
-  key: string;
-  name: string;
-  editable: boolean;
-}
+// interface TableColumn {
+//   key: string;
+//   name: string;
+//   editable: boolean;
+// }
 
-interface TableRow {
-  [key: string]: string;
-}
+// interface TableRow {
+//   [key: string]: string;
+// }
 
-interface ReportItem {
-  id: string;
-  title: string;
-  type: "chart" | "table";
-  data?: ChartDataItem[];
-  columns?: TableColumn[];
-  rows?: TableRow[];
-  left: number;
-  top: number;
-}
+// interface ReportItem {
+//   id: string;
+//   title: string;
+//   type: "chart" | "table";
+//   data?: ChartDataItem[];
+//   columns?: TableColumn[];
+//   rows?: TableRow[];
+//   left: number;
+//   top: number;
+// }
 
 const DraggableItem: React.FC<DraggableItemProps> = ({
   id,
@@ -84,20 +86,11 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
 };
 
 const View = () => {
-  const [reportItems, setReportItems] = useState<ReportItem[]>([
-    {
-      id: "sales",
-      title: "Sales Overview",
-      type: "chart",
-      data: null,
-      left: 0,
-      top: 0,
-    },
-  ]);
+  const [useKeyArr, setKeyArr] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const moveItem = useCallback((id: string, left: number, top: number) => {
-    setReportItems((prevItems) =>
+    setSelectedItems((prevItems) =>
       prevItems.map((item) => (item.id === id ? { ...item, left, top } : item))
     );
   }, []);
@@ -147,6 +140,44 @@ const View = () => {
     }
   };
 
+  useEffect(() => {
+    if (mockData && mockData?.length > 0) {
+      const keyArr = findKeyValue(mockData[0]);
+      setKeyArr(keyArr);
+    }
+  }, [mockData]);
+
+  // สร้าง state เพื่อเก็บ items ที่ถูกเลือก
+  const [selectedItems, setSelectedItems] = useState([]);
+
+  // ฟังก์ชันเพื่อจัดการการเลือกหรือยกเลิก checkbox
+  const handleCheckboxChange = (item) => {
+    setSelectedItems((prev) => {
+      const foundItem = prev.find((i) => i.id === item);
+      if (foundItem) {
+        // ถ้า item มีอยู่แล้วใน state ให้ลบออก
+        return prev.filter((i) => i.id !== item);
+      } else {
+        // ถ้า item ยังไม่อยู่ใน state ให้เพิ่ม object ใหม่เข้าไป
+        return [
+          ...prev,
+          {
+            id: item,
+            title: item,
+            type: item,
+            data: item,
+            left: 0,
+            top: 0,
+          },
+        ];
+      }
+    });
+  };
+
+  useEffect(() => {
+    console.log(selectedItems, "selectedItems");
+  }, [selectedItems]);
+
   return (
     <>
       <div className="flex w-full p-6 border border-dashed border-red-300 flex-col">
@@ -155,7 +186,20 @@ const View = () => {
           <button onClick={printToPDF}>Print to PDF</button>{" "}
         </div>
         <div className="flex gap-4">
-          <div className="flex flex-1 min-w-[300px] min-h-full p-4 bg-blue-200 rounded-3xl"></div>
+          <div className="flex flex-1 min-w-[100px] max-h-screen overflow-auto min-h-full p-4 bg-blue-200 rounded-3xl flex-col">
+            {useKeyArr &&
+              useKeyArr.length > 0 &&
+              useKeyArr.map((item) => (
+                <div key={item} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.some((i) => i.id === item)}
+                    onChange={() => handleCheckboxChange(item)}
+                  />
+                  <span className="ml-2">{item}</span>
+                </div>
+              ))}
+          </div>
           <div
             className="min-h-[842px] min-w-[595px] h-[842px] w-[595px]"
             ref={(node) => {
@@ -170,18 +214,19 @@ const View = () => {
               border: "1px solid #ccc",
             }}
           >
-            {reportItems?.map((item) => {
-              return (
-                <DraggableItem
-                  key={item.id}
-                  id={item.id}
-                  left={item.left}
-                  top={item.top}
-                >
-                  hello krub
-                </DraggableItem>
-              );
-            })}
+            {selectedItems &&
+              selectedItems?.map((item) => {
+                return (
+                  <DraggableItem
+                    key={item.id}
+                    id={item.id}
+                    left={item.left}
+                    top={item.top}
+                  >
+                    {item?.data}
+                  </DraggableItem>
+                );
+              })}
           </div>
         </div>
       </div>
