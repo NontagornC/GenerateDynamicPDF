@@ -89,6 +89,8 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
 const View = () => {
   const [useKeyArr, setKeyArr] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // สร้าง state เพื่อเก็บ items ที่ถูกเลือก
+  const [selectedItems, setSelectedItems] = useState([]);
 
   const moveItem = useCallback((id: string, left: number, top: number) => {
     setSelectedItems((prevItems) =>
@@ -111,33 +113,68 @@ const View = () => {
     [moveItem]
   );
 
+  // const printToPDF = async () => {
+  //   const input = document.getElementById("report-container");
+  //   if (input) {
+  //     const canvas = await html2canvas(input, { scale: 2 }); // เพิ่ม scale เพื่อความคมชัดของภาพ
+  //     const imgData = canvas.toDataURL("image/png");
+
+  //     // ตั้งค่า jsPDF ให้เป็นขนาดกระดาษ A4
+  //     const pdf = new jsPDF("p", "mm", "a4");
+  //     const pdfWidth = 210; // ความกว้างของ A4 ในหน่วยมิลลิเมตร
+  //     const pdfHeight = 297; // ความสูงของ A4 ในหน่วยมิลลิเมตร
+
+  //     // คำนวณขนาดของรูปภาพให้สัมพันธ์กับขนาด A4
+  //     const imgProps = pdf.getImageProperties(canvas);
+  //     const imgRatio = imgProps.width / imgProps.height;
+  //     let canvasWidth, canvasHeight;
+
+  //     if (imgRatio > 1) {
+  //       canvasWidth = pdfWidth;
+  //       canvasHeight = pdfWidth / imgRatio;
+  //     } else {
+  //       canvasHeight = pdfHeight;
+  //       canvasWidth = pdfHeight * imgRatio;
+  //     }
+
+  //     // เพิ่มรูปภาพในขนาดที่คำนวณไว้ลงใน PDF
+  //     pdf.addImage(imgData, "PNG", 0, 0, canvasWidth, canvasHeight);
+  //     pdf.save("dashboard.pdf");
+  //   }
+  // };
   const printToPDF = async () => {
     const input = document.getElementById("report-container");
+
     if (input) {
-      const canvas = await html2canvas(input, { scale: 2 }); // เพิ่ม scale เพื่อความคมชัดของภาพ
-      const imgData = canvas.toDataURL("image/png");
-
-      // ตั้งค่า jsPDF ให้เป็นขนาดกระดาษ A4
       const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = 210; // ความกว้างของ A4 ในหน่วยมิลลิเมตร
-      const pdfHeight = 297; // ความสูงของ A4 ในหน่วยมิลลิเมตร
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      // คำนวณขนาดของรูปภาพให้สัมพันธ์กับขนาด A4
-      const imgProps = pdf.getImageProperties(canvas);
-      const imgRatio = imgProps.width / imgProps.height;
-      let canvasWidth, canvasHeight;
+      const canvas = await html2canvas(input, {
+        scale: 2, // เพิ่มความคมชัด
+        useCORS: true, // เพื่อหลีกเลี่ยงปัญหา CORS
+      });
 
-      if (imgRatio > 1) {
-        canvasWidth = pdfWidth;
-        canvasHeight = pdfWidth / imgRatio;
-      } else {
-        canvasHeight = pdfHeight;
-        canvasWidth = pdfHeight * imgRatio;
+      const imgData = canvas.toDataURL("image/png");
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // วาดรูปภาพแต่ละส่วนของ PDF
+      while (heightLeft > 0) {
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+        position -= pdfHeight;
+
+        if (heightLeft > 0) {
+          pdf.addPage();
+          position = 0; // รีเซ็ตตำแหน่ง
+        }
       }
 
-      // เพิ่มรูปภาพในขนาดที่คำนวณไว้ลงใน PDF
-      pdf.addImage(imgData, "PNG", 0, 0, canvasWidth, canvasHeight);
-      pdf.save("dashboard.pdf");
+      pdf.save("report.pdf");
     }
   };
 
@@ -147,9 +184,6 @@ const View = () => {
       setKeyArr(keyArr);
     }
   }, [mockData]);
-
-  // สร้าง state เพื่อเก็บ items ที่ถูกเลือก
-  const [selectedItems, setSelectedItems] = useState([]);
 
   const getValuesByKey = (data, key) => {
     return data.map((item) => item[key] || "-"); // ดึงค่าออกมาตาม key ที่ระบุ
@@ -207,7 +241,7 @@ const View = () => {
               ))}
           </div>
           <div
-            className="min-h-[842px] min-w-[595px] h-[842px] w-[595px]"
+            className="min-h-[842px] min-w-[595px] "
             ref={(node) => {
               if (node) {
                 containerRef.current = node;

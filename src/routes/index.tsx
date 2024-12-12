@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router-dom";
-import DynamicGeneratePDF from "@/page/GenerateDynamicPDF/View";
+import Mock2 from "@/page/GenerateDynamicPDF/View";
 import CutsomReportDashBoard from "@/page/MockTest/CutsomReportDashBoard";
-import Mock2 from "@/page/MockTest/View";
+import DynamicGeneratePDF from "@/page/MockTest/View";
 
 const index = () => {
   return (
