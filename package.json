@@ -21,6 +21,7 @@
     "@reduxjs/toolkit": "^2.1.0",
     "chart.js": "^4.4.4",
     "jspdf": "^2.5.1",
+    "pdfmake": "^0.2.16",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
     "react-data-grid": "^7.0.0-beta.47",

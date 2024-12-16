@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
 import { mockData } from "@/assets/mockData";
 import { findKeyValue } from "@/utils";
 import Tooltip from "@mui/material/Tooltip";
@@ -25,34 +23,6 @@ interface DraggableItemProps {
   top: number;
   children: React.ReactNode;
 }
-
-// Types
-// interface ChartDataItem {
-//   name: string;
-//   sales: number;
-//   expenses: number;
-// }
-
-// interface TableColumn {
-//   key: string;
-//   name: string;
-//   editable: boolean;
-// }
-
-// interface TableRow {
-//   [key: string]: string;
-// }
-
-// interface ReportItem {
-//   id: string;
-//   title: string;
-//   type: "chart" | "table";
-//   data?: ChartDataItem[];
-//   columns?: TableColumn[];
-//   rows?: TableRow[];
-//   left: number;
-//   top: number;
-// }
 
 const DraggableItem: React.FC<DraggableItemProps> = ({
   id,
@@ -78,7 +48,6 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     opacity: isDragging ? 0.5 : 1,
     cursor: "move",
     padding: isDragging ? "none" : "10px",
-    //     border: "1px solid #ccc",
     borderRadius: "5px",
     backgroundColor: "white",
   };
@@ -116,71 +85,6 @@ const View = () => {
     }),
     [moveItem]
   );
-
-  // const printToPDF = async () => {
-  //   const input = document.getElementById("report-container");
-  //   if (input) {
-  //     const canvas = await html2canvas(input, { scale: 2 }); // เพิ่ม scale เพื่อความคมชัดของภาพ
-  //     const imgData = canvas.toDataURL("image/png");
-
-  //     // ตั้งค่า jsPDF ให้เป็นขนาดกระดาษ A4
-  //     const pdf = new jsPDF("p", "mm", "a4");
-  //     const pdfWidth = 210; // ความกว้างของ A4 ในหน่วยมิลลิเมตร
-  //     const pdfHeight = 297; // ความสูงของ A4 ในหน่วยมิลลิเมตร
-
-  //     // คำนวณขนาดของรูปภาพให้สัมพันธ์กับขนาด A4
-  //     const imgProps = pdf.getImageProperties(canvas);
-  //     const imgRatio = imgProps.width / imgProps.height;
-  //     let canvasWidth, canvasHeight;
-
-  //     if (imgRatio > 1) {
-  //       canvasWidth = pdfWidth;
-  //       canvasHeight = pdfWidth / imgRatio;
-  //     } else {
-  //       canvasHeight = pdfHeight;
-  //       canvasWidth = pdfHeight * imgRatio;
-  //     }
-
-  //     // เพิ่มรูปภาพในขนาดที่คำนวณไว้ลงใน PDF
-  //     pdf.addImage(imgData, "PNG", 0, 0, canvasWidth, canvasHeight);
-  //     pdf.save("dashboard.pdf");
-  //   }
-  // };
-  const printToPDF = async () => {
-    const input = document.getElementById("report-container");
-
-    if (input) {
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      const canvas = await html2canvas(input, {
-        scale: 2, // เพิ่มความคมชัด
-        useCORS: true, // เพื่อหลีกเลี่ยงปัญหา CORS
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      // วาดรูปภาพแต่ละส่วนของ PDF
-      while (heightLeft > 0) {
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-        position -= pdfHeight;
-
-        if (heightLeft > 0) {
-          pdf.addPage();
-          position = 0; // รีเซ็ตตำแหน่ง
-        }
-      }
-
-      pdf.save("report.pdf");
-    }
-  };
 
   useEffect(() => {
     if (mockData && mockData?.length > 0) {
@@ -224,46 +128,36 @@ const View = () => {
     console.log(selectedItems, "selectedItems");
   }, [selectedItems]);
 
-  const docDefinition = {
-    content: [
-      {
-        absolutePosition: { x: 58, y: 52 },
-        columns: [
-          {
-            // width: 100,
-            text: "Simple absolute text width width 100",
-          },
-        ],
-      },
-    ],
-    styles: {
-      header: {
-        fontSize: 18,
-        bold: true,
-      },
-      subheader: {
-        fontSize: 15,
-        bold: true,
-      },
-      quote: {
-        italics: true,
-      },
-      small: {
-        fontSize: 8,
-      },
-    },
-  };
-  const [url, setUrl] = useState(null);
+  //   const docDefinition = {
+  //     content: [
+  //       {
+  //         absolutePosition: { x: 58, y: 52 },
+  //         columns: [
+  //           {
+  //             // width: 100,
+  //             text: "Simple absolute text width width 100",
+  //           },
+  //         ],
+  //       },
+  //     ],
+  //   };
 
   const createPdf = () => {
-    // const pdfGenerator = pdfMake.createPdf(docDefinition);
+    const content = selectedItems?.map((item) => {
+      return {
+        absolutePosition: { x: item?.left, y: item?.top },
+        columns: item?.data?.map((text) => {
+          return {
+            // width: 100,
+            text: text,
+          };
+        }),
+      };
+    });
+    const docDefinition = {
+      content: content,
+    };
     pdfMake.createPdf(docDefinition).open();
-
-    // pdfGenerator.getBlob((blob) => {
-    //   const url = URL.createObjectURL(blob);
-    //   setUrl(url);
-    // });
-    // pdfGenerator.download();
   };
 
   return (
@@ -271,9 +165,7 @@ const View = () => {
       <div className="flex w-full p-6 border border-dashed border-red-300 flex-col">
         <div className="flex justify-between">
           <h1>Dynamic Generate</h1>
-          <button onClick={printToPDF}>Print to PDF</button>{" "}
-          <button onClick={createPdf}>Generate PDF2222</button>
-          {url && <div>{url}</div>}
+          <button onClick={createPdf}>Generate PDF</button>
         </div>
         <div className="flex gap-4">
           <div className="flex flex-1 min-w-[100px] max-h-screen overflow-auto min-h-full p-4 bg-blue-200 rounded-3xl flex-col">
@@ -332,12 +224,7 @@ const View = () => {
                       arrow
                     >
                       <div className="flex flex-col gap-1 relative">
-                        {item?.data &&
-                          item?.data?.length > 0 &&
-                          item?.data?.map((itemValue, j) => {
-                            return <span key={j + item?.id}>{itemValue}</span>;
-                          })}
-                        {/* {item?.key} */}
+                        {item?.key}
                       </div>
                     </Tooltip>
                   </DraggableItem>
