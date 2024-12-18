@@ -82,9 +82,28 @@ export const mockData = [
     usedMaxValue: null,
     calibrateMinValue: null,
     calibrateMaxValue: null,
+    // array เอาไปทำ table
     // calibrationPlanDetailList: [
     //   {
     //     planNo: "CBPL24000002",
+    //     planDate: "2024-01-01T00:00:00",
+    //     plantCode: "4145",
+    //     planStatusDetail: "CLOSE",
+    //     calibrationDate: "2024-05-06T00:00:00",
+    //     dayValue: "1",
+    //     requestType: "CB",
+    //     requestNo: "CB24000006",
+    //     requestDate: "2024-05-06T00:00:00",
+    //     maintenanceStatus: "CLOSE",
+    //     calibrationStatus: "CB_COMPLETED",
+    //     calibrationStatusDescName: "สอบเทียบเรียบร้อยแล้ว",
+    //     calibrationRoundNo: "1",
+    //     checkPointId: "1",
+    //     technicianId: "sedtawut.cha",
+    //     totalCheckPointItem: 2,
+    //   },
+    //   {
+    //     planNo: "CBPL24000003",
     //     planDate: "2024-01-01T00:00:00",
     //     plantCode: "4145",
     //     planStatusDetail: "CLOSE",
