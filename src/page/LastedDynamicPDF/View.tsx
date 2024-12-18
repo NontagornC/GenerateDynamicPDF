@@ -68,6 +68,8 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
 const View = () => {
   const { register, watch, setValue, control, resetField, reset, getValues } =
     useForm({});
+  const [headerHeight, setHeaderHeight] = useState(100);
+  const [footerheight, setFooterHieght] = useState(100);
 
   const [lines, setLines] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -138,8 +140,14 @@ const View = () => {
     if (mode !== "draw") return;
 
     const rect = containerRef.current.getBoundingClientRect();
+    console.log(e.clientX, "ClientX");
+    console.log(e.clientY, "ClientY");
+    console.log(rect.left, "rect.left");
+    console.log(rect.top, "rect.top");
     const x = e.clientX - rect.left;
+    console.log(x, "x");
     const y = e.clientY - rect.top;
+    console.log(y, "y");
 
     setIsDrawing(true);
     setStartPoint({ x, y });
@@ -259,98 +267,48 @@ const View = () => {
     },
   };
 
-  // const liness = [
-  //   // เส้นตรงแนวนอน
-  //   {
-  //     absolutePosition: { x: 40, y: 100 },
-  //     canvas: [
-  //       {
-  //         type: "line",
-  //         x1: 0,
-  //         y1: 0,
-  //         x2: 200,
-  //         y2: 0,
-  //         lineWidth: 1,
-  //         lineColor: "black",
-  //       },
-  //     ],
-  //   },
-  //   // เส้นตรงแนวตั้ง
-  //   {
-  //     absolutePosition: { x: 100, y: 50 },
-  //     canvas: [
-  //       {
-  //         type: "line",
-  //         x1: 0,
-  //         y1: 0,
-  //         x2: 0,
-  //         y2: 100,
-  //         lineWidth: 2,
-  //         lineColor: "red",
-  //       },
-  //     ],
-  //   },
-  //   // เส้นเฉียง
-  //   {
-  //     absolutePosition: { x: 150, y: 150 },
-  //     canvas: [
-  //       {
-  //         type: "line",
-  //         // x1, y1 - จุดเริ่มต้นของเส้น
-  //         x1: 0,
-  //         y1: 0,
-  //         // x2, y2 - จุดสิ้นสุดของเส้น
-  //         x2: 100,
-  //         y2: 100,
-  //         // lineWidth - ความหนาของเส้น
-  //         lineWidth: 1,
-  //         // lineCap - รูปแบบจุดสิ้นสุดของเส้น ('butt', 'round', 'square')
-  //         lineCap: "round",
-  //         // dash - กำหนดรูปแบบเส้นประ
-  //         dash: { length: 5 }, // เส้นประ
-  //         // lineColor - สีของเส้น
-  //         lineColor: "blue",
-  //       },
-  //     ],
-  //   },
-  // ];
-
   const createPdf = () => {
-    const content = selectedItems?.map((item) => {
-      return {
-        absolutePosition: { x: item?.left, y: item?.top },
-        columns: item?.data?.map((text) => {
-          return {
-            width: item?.width,
-            text: text,
-            fontSize: item?.size,
-          };
-        }),
-      };
-    });
+    const A4_HEIGHT = 841.995;
+    const TOP_MARGIN = 100;
+    const BOTTOM_MARGIN = 100;
+    const USABLE_HEIGHT = A4_HEIGHT - TOP_MARGIN - BOTTOM_MARGIN;
 
-    // const lineElements = lines.map((line) => ({
-    //   absolutePosition: { x: 0, y: 0 },
-    //   canvas: [
-    //     {
-    //       type: "line",
-    //       x1: line.start.x,
-    //       y1: line.start.y,
-    //       x2: line.end.x,
-    //       y2: line.end.y,
-    //       lineWidth: line.width,
-    //       lineColor: line.color,
-    //       dash:
-    //         line.type === "dashed"
-    //           ? { length: 5 }
-    //           : line.type === "dotted"
-    //           ? { length: 2 }
-    //           : undefined,
-    //     },
-    //   ],
-    // }));
+    const mainContent = selectedItems
+      ?.filter(
+        (item) =>
+          item?.top > headerHeight &&
+          item?.top < A4_HEIGHT - footerheight - BOTTOM_MARGIN
+      )
+      ?.map((item) => ({
+        absolutePosition: {
+          x: item?.left,
+          y: item?.top - TOP_MARGIN,
+        },
+        columns: item?.data?.map((text) => ({
+          width: item?.width,
+          text: text,
+          fontSize: item?.size,
+        })),
+      }));
 
-    // แปลงเส้นเป็น canvas elements เพื่อให้สามารถอยู่เป็น bg ได้
+    const headerItems = selectedItems?.filter(
+      (item) => item?.top <= headerHeight
+    );
+
+    console.log(headerItems, "headerItems");
+
+    const footerItems = selectedItems?.filter(
+      (item) => item?.top >= A4_HEIGHT - footerheight - BOTTOM_MARGIN
+    );
+    // Footer content
+    const footerContent = footerItems?.map((item) => ({
+      absolutePosition: { x: item?.left, y: item?.top },
+      text: item?.key,
+      fontSize: item?.size,
+    }));
+
+    console.log(footerItems, "footerItems");
+
     const lineElements = lines.map((line) => ({
       type: "line",
       x1: line.start.x,
@@ -372,71 +330,51 @@ const View = () => {
         title: "awesome Document",
         subject: "subject of document",
       },
-      // แบบ static header แบบง่าย
-      // header: {
-      //   columns: [
-      //     { text: "ชื่อบริษัท", alignment: "left", margin: [40, 20] },
-      //     { text: "เอกสารสำคัญ", alignment: "right", margin: [0, 20, 40, 0] },
-      //   ],
-      // },
+      header: function (currentPage, pageCount, pageSize) {
+        return headerItems?.map((item) => ({
+          text: item?.data[0],
+          absolutePosition: {
+            x: item?.left,
+            y: item?.top,
+          },
+          fontSize: item?.size,
+          width: item?.width,
+        }));
+      },
 
-      // // แบบ dynamic footer ที่แสดงเลขหน้า
-      // footer: function (currentPage, pageCount, pageSize) {
-      //   return [
-      //     // สร้างเส้นคั่นด้านบน footer
-      //     {
-      //       canvas: [
-      //         {
-      //           type: "line",
-      //           x1: 40,
-      //           y1: 0,
-      //           x2: pageSize.width - 40,
-      //           y2: 0,
-      //           lineWidth: 0.5,
-      //           lineColor: "#999999",
-      //         },
-      //       ],
-      //     },
-      //     // ข้อความใน footer
-      //     {
-      //       columns: [
-      //         {
-      //           text: "วันที่พิมพ์: " + new Date().toLocaleDateString("th-TH"),
-      //           alignment: "left",
-      //           margin: [40, 10, 0, 0],
-      //         },
-      //         {
-      //           text: "หน้า " + currentPage + " จาก " + pageCount,
-      //           alignment: "right",
-      //           margin: [0, 10, 40, 0],
-      //         },
-      //       ],
-      //     },
-      //   ];
-      // },
-
-      pageMargins: [40, 60, 40, 60], // ให้มีพื้นที่สำหรับ header และ footer
-      content: [...content],
-      // content: [...content, ...lineElements],
-      // content: [...content, ...liness],
-      pageSize: "A4",
+      footer: function (currentPage, pageCount, pageSize) {
+        return footerItems?.map((item) => ({
+          text: item?.data[0],
+          absolutePosition: {
+            x: item?.left,
+            y: pageSize - item?.top,
+          },
+          fontSize: item?.size,
+          width: item?.width,
+        }));
+      },
+      pageMargins: [40, TOP_MARGIN, 40, 100],
+      content: [
+        ...mainContent,
+        {
+          text: "",
+          margin: [0, 0, 0, 100],
+        },
+      ],
+      pageSize: {
+        width: 595.35,
+        height: 841.995,
+      },
       defaultStyle: {
         font: "IBMPlexSansThaiLooped",
       },
-
-      // ใช้ foreground แทน background ถ้าต้องการให้เส้นอยู่ด้านบน
-      // foreground: [
-      //   {
-      //     canvas: lineElements
-      //   },
-
-      // ใช้ foreground แทน background ถ้าต้องการให้เส้นอยู่ด้านล่าง
       background: [
         {
           canvas: lineElements,
         },
       ],
     };
+
     pdfMake.createPdf(docDefinition).open();
   };
 
@@ -703,7 +641,7 @@ const View = () => {
               ))}
           </div>
           <div
-            className="max-h-[840px] min-w-[600px]"
+            className="max-h-[842px] min-w-[595px]"
             ref={(node) => {
               if (node) {
                 containerRef.current = node;
@@ -726,6 +664,44 @@ const View = () => {
             onMouseUp={mode === "draw" ? handleMouseUp : undefined}
             onMouseLeave={mode === "draw" ? handleMouseUp : undefined}
           >
+            {/* Header Area Zone */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: `${headerHeight}px`,
+                backgroundColor: "rgba(173, 216, 230, 0.2)", // Light blue with opacity
+                borderBottom: "2px dashed #A9A9A9",
+                pointerEvents: "none", // ให้คลิกผ่านได้
+                zIndex: 1,
+              }}
+            >
+              <span className="absolute top-2 left-2 text-gray-500">
+                Header Area
+              </span>
+            </div>
+
+            {/* Footer Area Zone */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                width: "100%",
+                height: `${footerheight}px`,
+                backgroundColor: "rgba(144, 238, 144, 0.2)", // Light green with opacity
+                borderTop: "2px dashed #A9A9A9",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            >
+              <span className="absolute bottom-2 left-2 text-gray-500">
+                Footer Area
+              </span>
+            </div>
+
             {selectedItems?.map((item) => (
               <DraggableItem
                 key={item.id}
