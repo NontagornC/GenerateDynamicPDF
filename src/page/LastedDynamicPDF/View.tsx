@@ -1,7 +1,13 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  ChangeEvent,
+} from "react";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { mockData } from "@/assets/mockData";
+import { mockData, mockData2 } from "@/assets/mockData";
 import { findKeyValue } from "@/utils";
 import Tooltip from "@mui/material/Tooltip";
 import pdfMake from "pdfmake/build/pdfmake";
@@ -51,11 +57,11 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     left,
     top,
     opacity: isDragging ? 0.5 : 1,
-    cursor: isDragMode ? "move" : "default", // เปลี่ยน cursor ตามโหมด
+    cursor: isDragMode ? "move" : "default",
     padding: "none",
     borderRadius: "5px",
     backgroundColor: "white",
-    pointerEvents: isDragMode ? "auto" : "none", // ปิดการ interact เมื่อไม่ได้อยู่ในโหมด drag
+    pointerEvents: isDragMode ? "auto" : "none",
   };
 
   return (
@@ -79,14 +85,12 @@ const View = () => {
   const [lineStyle, setLineStyle] = useState({
     color: "#000000",
     width: 1,
-    type: "solid", // 'solid', 'dashed', 'dotted'
+    type: "solid",
   });
 
-  // เพิ่ม state สำหรับโหมดการทำงาน (drag items หรือ draw line)
   const [mode, setMode] = useState("drag"); // 'drag' or 'draw'
   const [useKeyArr, setKeyArr] = useState(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  // สร้าง state เพื่อเก็บ items ที่ถูกเลือก
   const [selectedItems, setSelectedItems] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -185,7 +189,30 @@ const View = () => {
   };
 
   const getValuesByKey = (data, key) => {
-    return data.map((item) => item[key] || "-"); // ดึงค่าออกมาตาม key ที่ระบุ
+    return data.map((item) => item[key] || "-");
+  };
+  const getValuesByKey2 = (data, key) => {
+    if (Array.isArray(data)) {
+      // ถ้าเป็น array ให้ดึงค่าเฉพาะ key จาก object แรก
+      return data[0]?.[key];
+    }
+    // ถ้าเป็น object ธรรมดาให้ดึงค่าโดยตรง
+    return data[key];
+  };
+
+  const getValuesByKeyInObject = (objectData, key) => {
+    return objectData[key] || null;
+  };
+
+  const isArray = (data: any): boolean => Array.isArray(data);
+
+  const isArrayOfObjects = (data: any): boolean => {
+    return (
+      Array.isArray(data) &&
+      data.length > 0 &&
+      typeof data[0] === "object" &&
+      !Array.isArray(data[0])
+    );
   };
 
   const handleWidthChange = (newWidth: number) => {
@@ -209,9 +236,20 @@ const View = () => {
     setIsEditing(true);
   };
 
+  const checkTableDataFormat = (data: any[]) => {
+    return (
+      Array.isArray(data) &&
+      data.length > 0 &&
+      typeof data[0] === "object" &&
+      !Array.isArray(data[0])
+    );
+  };
+
   // ฟังก์ชันเพื่อจัดการการเลือกหรือยกเลิก checkbox
-  const handleCheckboxChange = (item) => {
-    const dataValue = getValuesByKey(mockData, item);
+  const handleCheckboxChange = (item: string) => {
+    console.log(item, "item");
+    // const dataValue = getValuesByKey(mockData, item);
+    const dataValue = getValuesByKey2(mockData2, item);
     setSelectedItems((prev) => {
       const foundItem = prev.find((i) => i.id === item);
       if (foundItem) {
@@ -232,7 +270,7 @@ const View = () => {
             key: item,
             id: item,
             title: item,
-            type: item,
+            type: checkTableDataFormat(dataValue) ? "table" : "key",
             data: dataValue,
             left: 0,
             top: 0,
@@ -267,45 +305,197 @@ const View = () => {
     },
   };
 
-  const createPdf = () => {
+  function calculateMaxCharacters(
+    width: number,
+    fontSize: number,
+    textWidthFactor = 0.6
+  ) {
+    return Math.floor(width / (fontSize * textWidthFactor));
+  }
+
+  const truncateText = (text: string, maxLength: number) => {
+    if (typeof text !== "string") text = String(text);
+    return text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
+  };
+
+  const returnManualTruncateText = (
+    text: string,
+    width: number,
+    fontSize: number
+  ) => {
+    const maxChar = calculateMaxCharacters(width, fontSize);
+    return truncateText(text, maxChar);
+  };
+
+  const toBase64 = (file: File) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+    });
+  };
+
+  const createPdf = async () => {
     const A4_HEIGHT = 841.995;
     const TOP_MARGIN = 100;
-    const BOTTOM_MARGIN = 100;
-    const USABLE_HEIGHT = A4_HEIGHT - TOP_MARGIN - BOTTOM_MARGIN;
+
+    const tableData = selectedItems?.filter(
+      (item) =>
+        Array.isArray(item.data) &&
+        item.data.length > 0 &&
+        typeof item.data[0] === "object" &&
+        !Array.isArray(item.data[0])
+    );
+
+    const headers = tableData?.[0]?.data?.[0]
+      ? Object.keys(tableData[0].data[0])
+      : [];
+
+    const rows = tableData?.[0]?.data?.map((item) => Object.values(item)) || [];
+    const columnsWidth = Number(tableData[0]?.width) / headers?.length;
+    const tableContent = {
+      absolutePosition: {
+        x: tableData[0]?.left,
+        y: tableData[0]?.top,
+      },
+      table: {
+        pageBreak: "after",
+        // headerRows: 1,
+        body: [
+          headers.map((header) => ({
+            // text: truncateText(header, 3), // ตัดข้อความใน header
+            text: returnManualTruncateText(header, columnsWidth, 8), // ตัดข้อความใน header
+            title: header,
+            style: "tableHeader",
+            bold: true,
+            noWrap: true,
+          })),
+          ...rows.map((row) =>
+            row.map((cell) => ({
+              // text: truncateText(cell, MAX_CHAR_COUNT), // ตัดข้อความใน cell
+              text: returnManualTruncateText(cell, columnsWidth, 6), // ตัดข้อความใน header
+              title: cell,
+              style: "tableCell",
+              noWrap: true,
+            }))
+          ),
+        ],
+        // widths: Array(headers.length).fill("auto"),
+        widths: Array(headers.length).fill(columnsWidth),
+      },
+      layout: {
+        hLineWidth: function (i, node) {
+          return 1;
+        },
+        vLineWidth: function (i, node) {
+          return 1;
+        },
+        hLineColor: function (i, node) {
+          return "#aaa";
+        },
+        vLineColor: function (i, node) {
+          return "#aaa";
+        },
+        // paddingLeft: function (i, node) {
+        //   return 4;
+        // },
+        // paddingRight: function (i, node) {
+        //   return 4;
+        // },
+        // paddingTop: function (i, node) {
+        //   return 2;
+        // },
+        // paddingBottom: function (i, node) {
+        //   return 2;
+        // },
+      },
+    };
+
+    // Process image content
+    const imageContent = await Promise.all(
+      selectedItems
+        ?.filter((imgItem) => imgItem?.type === "image")
+        ?.map(async (imgItem) => {
+          const base64String = await toBase64(imgItem?.data?.[0]);
+          return {
+            image: base64String,
+            fit: [imgItem?.width, imgItem?.width],
+            absolutePosition: { x: imgItem?.left, y: imgItem?.top },
+          };
+        }) || []
+    );
+
+    console.log(imageContent, "imageContent");
 
     const mainContent = selectedItems
       ?.filter(
         (item) =>
           item?.top > headerHeight &&
-          item?.top < A4_HEIGHT - footerheight - BOTTOM_MARGIN
+          item?.top < A4_HEIGHT - footerheight &&
+          !tableData?.some((tableItem) => tableItem?.key === item?.key) &&
+          item?.type !== "image"
       )
       ?.map((item) => ({
         absolutePosition: {
           x: item?.left,
-          y: item?.top - TOP_MARGIN,
+          y: item?.top,
         },
-        columns: item?.data?.map((text) => ({
-          width: item?.width,
-          text: text,
-          fontSize: item?.size,
-        })),
+        columns: [
+          {
+            width: item?.width,
+            stack: Array.isArray(item?.data)
+              ? item?.data?.map((text) => ({
+                  text: text,
+                  fontSize: item?.size,
+                }))
+              : [
+                  {
+                    text: item?.data,
+                    fontSize: item?.size,
+                  },
+                ],
+          },
+        ],
       }));
+
+    console.log(mainContent, "main content");
 
     const headerItems = selectedItems?.filter(
       (item) => item?.top <= headerHeight
     );
 
+    const headerContent = await Promise.all(
+      headerItems?.map(async (item) => {
+        if (item?.type === "image") {
+          const base64String = await toBase64(item?.data?.[0]);
+          return {
+            image: base64String,
+            absolutePosition: {
+              x: item?.left,
+              y: item?.top,
+            },
+            fit: [item?.width, item?.width],
+          };
+        } else {
+          return {
+            text: item?.data[0],
+            absolutePosition: {
+              x: item?.left,
+              y: item?.top,
+            },
+            fontSize: item?.size,
+            width: item?.width,
+          };
+        }
+      }) || []
+    );
+
     console.log(headerItems, "headerItems");
 
     const footerItems = selectedItems?.filter(
-      (item) => item?.top >= A4_HEIGHT - footerheight - BOTTOM_MARGIN
+      (item) => item?.top >= A4_HEIGHT - footerheight
     );
-    // Footer content
-    const footerContent = footerItems?.map((item) => ({
-      absolutePosition: { x: item?.left, y: item?.top },
-      text: item?.key,
-      fontSize: item?.size,
-    }));
 
     console.log(footerItems, "footerItems");
 
@@ -330,24 +520,25 @@ const View = () => {
         title: "awesome Document",
         subject: "subject of document",
       },
-      header: function (currentPage, pageCount, pageSize) {
-        return headerItems?.map((item) => ({
-          text: item?.data[0],
-          absolutePosition: {
-            x: item?.left,
-            y: item?.top,
-          },
-          fontSize: item?.size,
-          width: item?.width,
-        }));
-      },
-
+      // header: function (currentPage, pageCount, pageSize) {
+      //   return headerItems?.map((item) => ({
+      //     text: item?.data[0],
+      //     absolutePosition: {
+      //       x: item?.left,
+      //       y: item?.top,
+      //     },
+      //     fontSize: item?.size,
+      //     width: item?.width,
+      //   }));
+      // },
+      header: headerContent,
       footer: function (currentPage, pageCount, pageSize) {
+        console.log(pageSize.height - A4_HEIGHT - footerItems[0]?.top);
         return footerItems?.map((item) => ({
           text: item?.data[0],
           absolutePosition: {
             x: item?.left,
-            y: pageSize - item?.top,
+            y: item?.top - (A4_HEIGHT - 100),
           },
           fontSize: item?.size,
           width: item?.width,
@@ -355,7 +546,14 @@ const View = () => {
       },
       pageMargins: [40, TOP_MARGIN, 40, 100],
       content: [
+        // {
+        //   image: base64String,
+        //   fit: [100, 100],
+        //   absolutePosition: { x: 300, y: 300 },
+        // },
+        ...imageContent,
         ...mainContent,
+        tableContent,
         {
           text: "",
           margin: [0, 0, 0, 100],
@@ -367,6 +565,23 @@ const View = () => {
       },
       defaultStyle: {
         font: "IBMPlexSansThaiLooped",
+      },
+      styles: {
+        tableHeader: {
+          fontSize: 8,
+          bold: true,
+          alignment: "left",
+          fillColor: "#f8f9fa",
+          maxHeight: 22,
+          noWrap: true,
+        },
+        tableCell: {
+          fontSize: 6,
+          alignment: "left",
+          maxHeight: 20,
+          noWrap: true,
+          color: "#1d4ed8",
+        },
       },
       background: [
         {
@@ -398,7 +613,7 @@ const View = () => {
   };
 
   const LineControls = () => (
-    <div className="flex flex-col gap-4 p-4 bg-gray-100 rounded-lg border border-blue-700">
+    <div className="flex flex-col gap-4 p-4 bg-gray-100 truncate rounded-lg border border-blue-700">
       <h3 className="font-bold">Line Settings</h3>
 
       {/* Color Picker */}
@@ -574,6 +789,49 @@ const View = () => {
     }
   }, [lines]);
 
+  // updateload file
+  const inputUploadRef = useRef(null);
+
+  const accecptFilesArray = ["jpg", "jpeg", "png"];
+  const maxFileSize = 1024 * 1024;
+
+  const onChooseFile = () => {
+    inputUploadRef?.current?.click();
+  };
+
+  const onChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const fileSize = event?.target?.files[0]?.size;
+    const fileType = event?.target?.files[0]?.type?.split("/")[1];
+    if (!accecptFilesArray.includes(fileType)) {
+      console.log("validate file type");
+      return;
+    }
+    if (fileSize > maxFileSize) {
+      console.log("exceed file size");
+    } else {
+      console.log(event?.target?.files[0]);
+      setSelectedItems((prev) => {
+        return [
+          ...prev,
+          {
+            key: event?.target?.files[0]?.name,
+            id:
+              event?.target?.files[0]?.name +
+              "-" +
+              event?.target?.files[0]?.lastModified,
+            title: event?.target?.files[0]?.name,
+            type: "image",
+            data: [event?.target?.files[0]],
+            left: 0,
+            top: 0,
+            size: 36,
+            width: 100,
+          },
+        ];
+      });
+    }
+  };
+
   return (
     <>
       <div className="flex w-full p-6 border border-dashed border-red-300 flex-col">
@@ -604,6 +862,24 @@ const View = () => {
               </button>
             </div>
             {LineControls()}
+            <div className="flex flex-col gap-2">
+              <>
+                <Container
+                  maxWidth={160}
+                  onClick={onChooseFile}
+                  className="flex w-full cursor-pointer items-center justify-center rounded-lg border border-outline-grey bg-info-state-on-default px-4 py-[10px] font-semibold leading-6"
+                >
+                  อัปโหลดรูปภาพ
+                </Container>
+                <input
+                  type="file"
+                  ref={inputUploadRef}
+                  style={{ display: "none" }}
+                  onChange={onChange}
+                  accept=".jpg, .jpeg, .png"
+                />
+              </>
+            </div>
             <div className="flex flex-col gap-2 p-4 border border-blue-700">
               <div className="flex gap-2 p-2">
                 <button
@@ -702,107 +978,121 @@ const View = () => {
               </span>
             </div>
 
-            {selectedItems?.map((item) => (
-              <DraggableItem
-                key={item.id}
-                id={item.id}
-                left={item.left}
-                top={item.top}
-                isDragMode={mode === "drag"}
-              >
-                {tooltipOpen[item.id] !== undefined && (
-                  <Tooltip
-                    open={tooltipOpen[item.id]}
-                    onOpen={() => handleTooltipOpen(item.id)}
-                    onClose={() => handleTooltipClose(item.id)}
-                    title={
-                      <div className="p-1 flex justify-center items-center relative">
-                        <div className="flex flex-col items-center">
-                          <div className="flex items-center gap-2">
-                            {item?.title}
-                            <div
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCheckboxChange(item?.id);
-                                handleTooltipClose(item.id);
-                              }}
-                              className="w-[12px] h-[12px] flex justify-center items-center rounded-full bg-red-600 cursor-pointer"
-                            >
-                              x
+            {selectedItems?.map((item) =>
+              item?.type === "image" ? (
+                <DraggableItem
+                  key={item.id}
+                  id={item.id}
+                  left={item.left}
+                  top={item.top}
+                  isDragMode={mode === "drag"}
+                >
+                  <ImageItem
+                    src={URL.createObjectURL(item?.data[0])}
+                    imgSize={item?.width}
+                  />
+                </DraggableItem>
+              ) : (
+                <DraggableItem
+                  key={item.id}
+                  id={item.id}
+                  left={item.left}
+                  top={item.top}
+                  isDragMode={mode === "drag"}
+                >
+                  {tooltipOpen[item.id] !== undefined && (
+                    <Tooltip
+                      open={tooltipOpen[item.id]}
+                      onOpen={() => handleTooltipOpen(item.id)}
+                      onClose={() => handleTooltipClose(item.id)}
+                      title={
+                        <div className="p-1 flex justify-center items-center relative">
+                          <div className="flex flex-col items-center">
+                            <div className="flex items-center gap-2">
+                              {item?.title}
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCheckboxChange(item?.id);
+                                  handleTooltipClose(item.id);
+                                }}
+                                className="w-[12px] h-[12px] flex justify-center items-center rounded-full bg-red-600 cursor-pointer"
+                              >
+                                x
+                              </div>
                             </div>
+                            {isEditing && selectedItemId === item.id ? (
+                              <div className="mt-2 flex items-center gap-2 flex-col">
+                                <span>ความกว้างของ Box</span>
+                                <input
+                                  type="number"
+                                  value={editWidth}
+                                  onChange={(e) => setEditWidth(e.target.value)}
+                                  className="w-20 px-2 py-1 rounded text-black"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleWidthChange(Number(editWidth));
+                                      handleTooltipClose(item.id);
+                                    }
+                                  }}
+                                />
+                                <span>ขนาดตัวอักษร</span>
+                                <input
+                                  type="number"
+                                  value={editSize}
+                                  onChange={(e) => setEditSize(e.target.value)}
+                                  className="w-20 px-2 py-1 rounded text-black"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleSizeChange(Number(editSize));
+                                    }
+                                  }}
+                                  onBlur={() =>
+                                    handleSizeChange(Number(editSize))
+                                  } // เพิ่ม onBlur
+                                />
+                              </div>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleItemClick(
+                                    item.id,
+                                    item.width,
+                                    item?.size
+                                  );
+                                }}
+                                className="mt-2 px-2 py-1 bg-gray-200 text-black rounded text-sm"
+                              >
+                                Edit Width
+                              </button>
+                            )}
                           </div>
-                          {isEditing && selectedItemId === item.id ? (
-                            <div className="mt-2 flex items-center gap-2 flex-col">
-                              <span>ความกว้างของ Box</span>
-                              <input
-                                type="number"
-                                value={editWidth}
-                                onChange={(e) => setEditWidth(e.target.value)}
-                                className="w-20 px-2 py-1 rounded text-black"
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    handleWidthChange(Number(editWidth));
-                                    handleTooltipClose(item.id);
-                                  }
-                                }}
-                              />
-                              <span>ขนาดตัวอักษร</span>
-                              <input
-                                type="number"
-                                value={editSize}
-                                onChange={(e) => setEditSize(e.target.value)}
-                                className="w-20 px-2 py-1 rounded text-black"
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    handleSizeChange(Number(editSize));
-                                  }
-                                }}
-                                onBlur={() =>
-                                  handleSizeChange(Number(editSize))
-                                } // เพิ่ม onBlur
-                              />
-                            </div>
-                          ) : (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleItemClick(
-                                  item.id,
-                                  item.width,
-                                  item?.size
-                                );
-                              }}
-                              className="mt-2 px-2 py-1 bg-gray-200 text-black rounded text-sm"
-                            >
-                              Edit Width
-                            </button>
-                          )}
                         </div>
-                      </div>
-                    }
-                    placement="top"
-                    arrow
-                  >
-                    <ItemContainer
-                      className="flex flex-col gap-1 relative items-start justify-center"
-                      width={item?.width}
-                      fontSize={item?.size}
-                      isSelected={selectedItemId === item.id || false}
-                      onClick={(e) => {
-                        if (mode === "drag") {
-                          handleItemClick(item.id, item.width, item?.size);
-                          handleTooltipOpen(item.id);
-                        }
-                      }}
+                      }
+                      placement="top"
+                      arrow
                     >
-                      {item?.key}
-                    </ItemContainer>
-                  </Tooltip>
-                )}
-              </DraggableItem>
-            ))}
+                      <ItemContainer
+                        className="flex flex-col gap-1 relative items-start justify-center"
+                        width={item?.width}
+                        fontSize={item?.size}
+                        onClick={(e) => {
+                          if (mode === "drag") {
+                            handleItemClick(item.id, item.width, item?.size);
+                            handleTooltipOpen(item.id);
+                          }
+                        }}
+                      >
+                        {item?.key}
+                      </ItemContainer>
+                    </Tooltip>
+                  )}
+                </DraggableItem>
+              )
+            )}
             {/* {mode === "draw" && <DrawingLines />} */}
             <DrawingLines />
           </div>
@@ -814,9 +1104,7 @@ const View = () => {
 
 // Update your ItemContainer styled component
 const ItemContainer = styled.div<any>`
-  /* padding: 8px; */
-  width: ${(props) => `${props?.width * 1.2}px`};
-  border: 1px solid ${(props) => (props.isSelected ? "#2196f3" : "red")};
+  width: ${(props) => `${props?.width * 1.3}px`};
   cursor: ${(props) => (props.isDragMode ? "move" : "default")};
   transition: all 0.2s ease;
   font-size: ${(props) => `${props?.fontSize}px`};
@@ -827,6 +1115,21 @@ const ItemContainer = styled.div<any>`
   & > * {
     z-index: 2;
   }
+`;
+
+interface IContainerProps {
+  maxWidth: number;
+}
+
+const Container = styled.div<IContainerProps>`
+  max-width: ${(props) => (props.maxWidth ? `${props.maxWidth}px` : "160px")};
+`;
+
+const ImageItem = styled.img<any>`
+  width: ${(props) => `${props?.imgSize}px`};
+  max-width: ${(props) => `${props?.imgSize}px`};
+  height: ${(props) => `${props?.imgSize}px`};
+  max-height: ${(props) => `${props?.imgSize}px`};
 `;
 
 export default DraggableProvider;
