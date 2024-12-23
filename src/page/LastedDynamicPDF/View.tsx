@@ -14,6 +14,7 @@ import pdfMake from "pdfmake/build/pdfmake";
 import * as pdfFonts from "../../assets/vfs_fonts.js";
 import { styled } from "styled-components";
 import { useForm } from "react-hook-form";
+import InputNumber from "@/components/Input/InputNumber.js";
 
 pdfMake.vfs = pdfFonts.vfs;
 
@@ -73,9 +74,13 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
 
 const View = () => {
   const { register, watch, setValue, control, resetField, reset, getValues } =
-    useForm({});
-  const [headerHeight, setHeaderHeight] = useState(100);
-  const [footerheight, setFooterHieght] = useState(100);
+    useForm({
+      defaultValues: {
+        insertTextItem: null,
+        headerHeight: 100,
+        footerHeight: 100,
+      },
+    });
 
   const [lines, setLines] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -338,7 +343,6 @@ const View = () => {
 
   const createPdf = async () => {
     const A4_HEIGHT = 841.995;
-    const TOP_MARGIN = 100;
 
     const tableData = selectedItems?.filter(
       (item) =>
@@ -431,8 +435,8 @@ const View = () => {
     const mainContent = selectedItems
       ?.filter(
         (item) =>
-          item?.top > headerHeight &&
-          item?.top < A4_HEIGHT - footerheight &&
+          item?.top > watch("headerHeight") &&
+          item?.top < A4_HEIGHT - watch("footerHeight") &&
           !tableData?.some((tableItem) => tableItem?.key === item?.key) &&
           item?.type !== "image"
       )
@@ -462,7 +466,7 @@ const View = () => {
     console.log(mainContent, "main content");
 
     const headerItems = selectedItems?.filter(
-      (item) => item?.top <= headerHeight
+      (item) => item?.top <= watch("headerHeight")
     );
 
     const headerContent = await Promise.all(
@@ -494,7 +498,7 @@ const View = () => {
     console.log(headerItems, "headerItems");
 
     const footerItems = selectedItems?.filter(
-      (item) => item?.top >= A4_HEIGHT - footerheight
+      (item) => item?.top >= A4_HEIGHT - watch("footerHeight")
     );
 
     const footerContent = await Promise.all(
@@ -505,7 +509,7 @@ const View = () => {
             image: base64String,
             absolutePosition: {
               x: item?.left,
-              y: item?.top - (A4_HEIGHT - 100),
+              y: item?.top - (A4_HEIGHT - watch("footerHeight")),
             },
             fit: [item?.width, item?.width],
           };
@@ -514,7 +518,7 @@ const View = () => {
             text: item?.data[0],
             absolutePosition: {
               x: item?.left,
-              y: item?.top - (A4_HEIGHT - 100),
+              y: item?.top - (A4_HEIGHT - watch("footerHeight")),
             },
             fontSize: item?.size,
             width: item?.width,
@@ -546,44 +550,16 @@ const View = () => {
         title: "awesome Document",
         subject: "subject of document",
       },
-      // header: function (currentPage, pageCount, pageSize) {
-      //   return headerItems?.map((item) => ({
-      //     text: item?.data[0],
-      //     absolutePosition: {
-      //       x: item?.left,
-      //       y: item?.top,
-      //     },
-      //     fontSize: item?.size,
-      //     width: item?.width,
-      //   }));
-      // },
       header: headerContent,
-      // footer: function (currentPage, pageCount, pageSize) {
-      //   console.log(pageSize.height - A4_HEIGHT - footerItems[0]?.top);
-      //   return footerItems?.map((item) => ({
-      //     text: item?.data[0],
-      //     absolutePosition: {
-      //       x: item?.left,
-      //       y: item?.top - (A4_HEIGHT - 100),
-      //     },
-      //     fontSize: item?.size,
-      //     width: item?.width,
-      //   }));
-      // },
       footer: footerContent,
-      pageMargins: [40, TOP_MARGIN, 40, 100],
+      pageMargins: [40, watch("headerHeight"), 40, watch("footerHeight")],
       content: [
-        // {
-        //   image: base64String,
-        //   fit: [100, 100],
-        //   absolutePosition: { x: 300, y: 300 },
-        // },
         ...imageContent,
         ...mainContent,
         tableContent,
         {
           text: "",
-          margin: [0, 0, 0, 100],
+          margin: [0, 0, 0, watch("footerHeight")],
         },
       ],
       pageSize: {
@@ -926,6 +902,41 @@ const View = () => {
                 Generate PDF
               </button>
             </div>
+            <div className="flex flex-col gap-2 p-2 border border-blue-700">
+              <span>กรอก Text เพื่อนำไปนำไปแสดงใน report</span>
+              <InputNumber
+                disabled={false}
+                register={register}
+                registerName={`headerHeight`}
+                initValue={watch("headerHeight")}
+                textPosition={"right"}
+                onBlur={(value: string) => {
+                  setValue("headerHeight", Number(value));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setValue("headerHeight", Number(watch("headerHeight")));
+                  }
+                }}
+                toFixed={2}
+              />
+              <InputNumber
+                disabled={false}
+                register={register}
+                registerName={`footerHeight`}
+                initValue={watch("footerHeight")}
+                textPosition={"right"}
+                onBlur={(value: string) => {
+                  setValue("footerHeight", Number(value));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setValue("footerHeight", Number(watch("footerHeight")));
+                  }
+                }}
+                toFixed={2}
+              />
+            </div>
           </div>
         </div>
         <div className="flex gap-4">
@@ -974,7 +985,7 @@ const View = () => {
                 top: 0,
                 left: 0,
                 width: "100%",
-                height: `${headerHeight}px`,
+                height: `${watch("headerHeight")}px`,
                 backgroundColor: "rgba(173, 216, 230, 0.2)", // Light blue with opacity
                 borderBottom: "2px dashed #A9A9A9",
                 pointerEvents: "none", // ให้คลิกผ่านได้
@@ -993,7 +1004,7 @@ const View = () => {
                 bottom: 0,
                 left: 0,
                 width: "100%",
-                height: `${footerheight}px`,
+                height: `${watch("footerHeight")}px`,
                 backgroundColor: "rgba(144, 238, 144, 0.2)", // Light green with opacity
                 borderTop: "2px dashed #A9A9A9",
                 pointerEvents: "none",
@@ -1157,6 +1168,7 @@ const ImageItem = styled.img<any>`
   max-width: ${(props) => `${props?.imgSize}px`};
   height: ${(props) => `${props?.imgSize}px`};
   max-height: ${(props) => `${props?.imgSize}px`};
+  object-fit: contain;
 `;
 
 export default DraggableProvider;
