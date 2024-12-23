@@ -79,6 +79,8 @@ const View = () => {
         insertTextItem: null,
         headerHeight: 100,
         footerHeight: 100,
+        selectImgId: null,
+        editSelectImgSize: null,
       },
     });
 
@@ -811,6 +813,7 @@ const View = () => {
     }
     if (fileSize > maxFileSize) {
       console.log("exceed file size");
+      return;
     } else {
       console.log(event?.target?.files[0]);
       setSelectedItems((prev) => {
@@ -818,21 +821,34 @@ const View = () => {
           ...prev,
           {
             key: event?.target?.files[0]?.name,
-            id:
-              event?.target?.files[0]?.name +
-              "-" +
-              event?.target?.files[0]?.lastModified,
+            id: `${event?.target?.files[0]?.name}-${
+              event?.target?.files[0]?.lastModified
+            }-${Date.now()}`,
             title: event?.target?.files[0]?.name,
             type: "image",
             data: [event?.target?.files[0]],
             left: 0,
             top: 0,
-            size: 36,
             width: 100,
           },
         ];
       });
     }
+  };
+
+  const handleChangePhotoWidth = (size) => {
+    const imageId = watch("selectImgId");
+    if (!imageId || !size) return;
+
+    setSelectedItems((prevItems) =>
+      prevItems.map((item) =>
+        item.id === imageId ? { ...item, width: Number(size) } : item
+      )
+    );
+
+    // Reset form values
+    setValue("selectImgId", null);
+    setValue("editSelectImgSize", null);
   };
 
   return (
@@ -881,6 +897,42 @@ const View = () => {
                   onChange={onChange}
                   accept=".jpg, .jpeg, .png"
                 />
+                <div className="mt-4">
+                  {selectedItems.map((item) => (
+                    <div key={item.id} className="mb-4 p-4 border rounded">
+                      <h3 className="font-bold">{item.title}</h3>
+                      <div className="flex items-center mt-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max="1000"
+                          value={
+                            watch("selectImgId") === item.id
+                              ? watch("editSelectImgSize")
+                              : item.width
+                          }
+                          onChange={(e) => {
+                            setValue("selectImgId", item.id);
+                            setValue("editSelectImgSize", e.target.value);
+                          }}
+                          className={`px-2 border py-1 rounded w-32 ${
+                            watch("selectImgId") === item.id
+                              ? "border-red-400"
+                              : "border-gray-300"
+                          }`}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              handleChangePhotoWidth(
+                                watch("editSelectImgSize")
+                              );
+                            }
+                          }}
+                        />
+                        <span className="ml-2">px</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </>
             </div>
             <div className="flex flex-col gap-2 p-4 border border-blue-700">
@@ -1028,6 +1080,11 @@ const View = () => {
                   <ImageItem
                     src={URL.createObjectURL(item?.data[0])}
                     imgSize={item?.width}
+                    onClick={() => {
+                      if (mode === "drag") {
+                        setValue("selectImgId", item?.id);
+                      }
+                    }}
                   />
                 </DraggableItem>
               ) : (
