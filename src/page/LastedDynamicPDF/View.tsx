@@ -497,6 +497,32 @@ const View = () => {
       (item) => item?.top >= A4_HEIGHT - footerheight
     );
 
+    const footerContent = await Promise.all(
+      footerItems?.map(async (item) => {
+        if (item?.type === "image") {
+          const base64String = await toBase64(item?.data?.[0]);
+          return {
+            image: base64String,
+            absolutePosition: {
+              x: item?.left,
+              y: item?.top - (A4_HEIGHT - 100),
+            },
+            fit: [item?.width, item?.width],
+          };
+        } else {
+          return {
+            text: item?.data[0],
+            absolutePosition: {
+              x: item?.left,
+              y: item?.top - (A4_HEIGHT - 100),
+            },
+            fontSize: item?.size,
+            width: item?.width,
+          };
+        }
+      }) || []
+    );
+
     console.log(footerItems, "footerItems");
 
     const lineElements = lines.map((line) => ({
@@ -532,18 +558,19 @@ const View = () => {
       //   }));
       // },
       header: headerContent,
-      footer: function (currentPage, pageCount, pageSize) {
-        console.log(pageSize.height - A4_HEIGHT - footerItems[0]?.top);
-        return footerItems?.map((item) => ({
-          text: item?.data[0],
-          absolutePosition: {
-            x: item?.left,
-            y: item?.top - (A4_HEIGHT - 100),
-          },
-          fontSize: item?.size,
-          width: item?.width,
-        }));
-      },
+      // footer: function (currentPage, pageCount, pageSize) {
+      //   console.log(pageSize.height - A4_HEIGHT - footerItems[0]?.top);
+      //   return footerItems?.map((item) => ({
+      //     text: item?.data[0],
+      //     absolutePosition: {
+      //       x: item?.left,
+      //       y: item?.top - (A4_HEIGHT - 100),
+      //     },
+      //     fontSize: item?.size,
+      //     width: item?.width,
+      //   }));
+      // },
+      footer: footerContent,
       pageMargins: [40, TOP_MARGIN, 40, 100],
       content: [
         // {
