@@ -25,7 +25,6 @@ const DraggableProvider = () => {
     </DndProvider>
   );
 };
-// DraggableItem Component
 interface DraggableItemProps {
   id: string;
   left: number;
@@ -81,8 +80,11 @@ const View = () => {
         footerHeight: 100,
         selectImgId: null,
         editSelectImgSize: null,
+        selectedTablePart: {},
       },
     });
+
+  // const [selectedTablePart, setSelectedTablePart] = useState<{ [key: string]: 'header' | 'row' }>({});
 
   const [lines, setLines] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -163,7 +165,7 @@ const View = () => {
     setIsDrawing(true);
     setStartPoint({ x, y });
     setCurrentLine({
-      id: Date.now(), // ใช้ timestamp เป็น id
+      id: Date.now(),
       start: { x, y },
       end: { x, y },
       ...lineStyle,
@@ -200,10 +202,8 @@ const View = () => {
   };
   const getValuesByKey2 = (data, key) => {
     if (Array.isArray(data)) {
-      // ถ้าเป็น array ให้ดึงค่าเฉพาะ key จาก object แรก
       return data[0]?.[key];
     }
-    // ถ้าเป็น object ธรรมดาให้ดึงค่าโดยตรง
     return data[key];
   };
 
@@ -239,7 +239,7 @@ const View = () => {
   ) => {
     setSelectedItemId(itemId);
     setEditWidth(String(currentWidth));
-    setEditSize(String(currentSize)); // เพิ่มการ set ค่าเริ่มต้นของ size
+    setEditSize(String(currentSize));
     setIsEditing(true);
   };
 
@@ -252,15 +252,14 @@ const View = () => {
     );
   };
 
-  // ฟังก์ชันเพื่อจัดการการเลือกหรือยกเลิก checkbox
   const handleCheckboxChange = (item: string) => {
     console.log(item, "item");
-    // const dataValue = getValuesByKey(mockData, item);
     const dataValue = getValuesByKey2(mockData2, item);
+    const isTable = checkTableDataFormat(dataValue);
+
     setSelectedItems((prev) => {
       const foundItem = prev.find((i) => i.id === item);
       if (foundItem) {
-        // ถ้า item มีอยู่แล้วใน state ให้ลบออก
         setTooltipOpen((prevTooltip) => {
           const { [item]: removed, ...rest } = prevTooltip;
           return rest;
@@ -271,20 +270,37 @@ const View = () => {
           ...prevTooltip,
           [item]: false,
         }));
-        return [
-          ...prev,
-          {
-            key: item,
-            id: item,
-            title: item,
-            type: checkTableDataFormat(dataValue) ? "table" : "key",
-            data: dataValue,
-            left: 0,
-            top: 0,
-            size: 16,
-            width: 100,
-          },
-        ];
+
+        const newItem = {
+          key: item,
+          id: item,
+          title: item,
+          type: isTable ? "table" : "key",
+          data: dataValue,
+          left: 0,
+          top: 0,
+          size: 16,
+          width: 100,
+        };
+
+        if (isTable) {
+          return [
+            ...prev,
+            {
+              ...newItem,
+              headerBgColor: null,
+              rowBgColor: null,
+            },
+          ];
+        } else {
+          return [
+            ...prev,
+            {
+              ...newItem,
+              isBold: false,
+            },
+          ];
+        }
       }
     });
   };
@@ -343,6 +359,13 @@ const View = () => {
     });
   };
 
+  useEffect(() => {
+    if (watch("selectedTablePart")) {
+      console.log(watch("selectedTablePart"));
+      console.log("111");
+    }
+  }, [watch("selectedTablePart")]);
+
   const createPdf = async () => {
     const A4_HEIGHT = 841.995;
 
@@ -351,8 +374,11 @@ const View = () => {
         Array.isArray(item.data) &&
         item.data.length > 0 &&
         typeof item.data[0] === "object" &&
-        !Array.isArray(item.data[0])
+        !Array.isArray(item.data[0]) &&
+        item?.type === "table"
     );
+
+    console.log(tableData, "tableData");
 
     const headers = tableData?.[0]?.data?.[0]
       ? Object.keys(tableData[0].data[0])
@@ -360,6 +386,7 @@ const View = () => {
 
     const rows = tableData?.[0]?.data?.map((item) => Object.values(item)) || [];
     const columnsWidth = Number(tableData[0]?.width) / headers?.length;
+
     const tableContent = {
       absolutePosition: {
         x: tableData[0]?.left,
@@ -370,24 +397,26 @@ const View = () => {
         // headerRows: 1,
         body: [
           headers.map((header) => ({
-            // text: truncateText(header, 3), // ตัดข้อความใน header
-            text: returnManualTruncateText(header, columnsWidth, 8), // ตัดข้อความใน header
+            // text: truncateText(header, 3),
+            text: returnManualTruncateText(header, columnsWidth, 8),
             title: header,
             style: "tableHeader",
             bold: true,
             noWrap: true,
+            // fillColor: "#dddddd",
+            fillColor: tableData[0]?.headerBgColor || null,
           })),
           ...rows.map((row) =>
             row.map((cell) => ({
-              // text: truncateText(cell, MAX_CHAR_COUNT), // ตัดข้อความใน cell
-              text: returnManualTruncateText(cell, columnsWidth, 6), // ตัดข้อความใน header
+              // text: truncateText(cell, MAX_CHAR_COUNT),
+              text: returnManualTruncateText(cell, columnsWidth, 6),
               title: cell,
               style: "tableCell",
               noWrap: true,
+              fillColor: tableData[0]?.rowBgColor || null,
             }))
           ),
         ],
-        // widths: Array(headers.length).fill("auto"),
         widths: Array(headers.length).fill(columnsWidth),
       },
       layout: {
@@ -454,11 +483,13 @@ const View = () => {
               ? item?.data?.map((text) => ({
                   text: text,
                   fontSize: item?.size,
+                  bold: item?.isBold,
                 }))
               : [
                   {
                     text: item?.data,
                     fontSize: item?.size,
+                    bold: item?.isBold,
                   },
                 ],
           },
@@ -845,8 +876,6 @@ const View = () => {
         item.id === imageId ? { ...item, width: Number(size) } : item
       )
     );
-
-    // Reset form values
     setValue("selectImgId", null);
     setValue("editSelectImgSize", null);
   };
@@ -898,40 +927,44 @@ const View = () => {
                   accept=".jpg, .jpeg, .png"
                 />
                 <div className="mt-4">
-                  {selectedItems.map((item) => (
-                    <div key={item.id} className="mb-4 p-4 border rounded">
-                      <h3 className="font-bold">{item.title}</h3>
-                      <div className="flex items-center mt-2">
-                        <input
-                          type="number"
-                          min="1"
-                          max="1000"
-                          value={
-                            watch("selectImgId") === item.id
-                              ? watch("editSelectImgSize")
-                              : item.width
-                          }
-                          onChange={(e) => {
-                            setValue("selectImgId", item.id);
-                            setValue("editSelectImgSize", e.target.value);
-                          }}
-                          className={`px-2 border py-1 rounded w-32 ${
-                            watch("selectImgId") === item.id
-                              ? "border-red-400"
-                              : "border-gray-300"
-                          }`}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              handleChangePhotoWidth(
-                                watch("editSelectImgSize")
-                              );
+                  {selectedItems
+                    ?.filter((item) => {
+                      return item?.type === "image";
+                    })
+                    ?.map((item) => (
+                      <div key={item.id} className="mb-4 p-4 border rounded">
+                        <h3 className="font-bold">{item.title}</h3>
+                        <div className="flex items-center mt-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max="1000"
+                            value={
+                              watch("selectImgId") === item.id
+                                ? watch("editSelectImgSize")
+                                : item.width
                             }
-                          }}
-                        />
-                        <span className="ml-2">px</span>
+                            onChange={(e) => {
+                              setValue("selectImgId", item.id);
+                              setValue("editSelectImgSize", e.target.value);
+                            }}
+                            className={`px-2 border py-1 rounded w-32 ${
+                              watch("selectImgId") === item.id
+                                ? "border-red-400"
+                                : "border-gray-300"
+                            }`}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleChangePhotoWidth(
+                                  watch("editSelectImgSize")
+                                );
+                              }
+                            }}
+                          />
+                          <span className="ml-2">px</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </>
             </div>
@@ -955,7 +988,8 @@ const View = () => {
               </button>
             </div>
             <div className="flex flex-col gap-2 p-2 border border-blue-700">
-              <span>กรอก Text เพื่อนำไปนำไปแสดงใน report</span>
+              <span>ตัวเลขเพื่อปรับขนาด Footer, Header</span>
+              <span>Header</span>
               <InputNumber
                 disabled={false}
                 register={register}
@@ -972,6 +1006,7 @@ const View = () => {
                 }}
                 toFixed={2}
               />
+              <span>Footer</span>
               <InputNumber
                 disabled={false}
                 register={register}
@@ -989,6 +1024,76 @@ const View = () => {
                 toFixed={2}
               />
             </div>
+          </div>
+
+          <div className="flex justify-between items-center w-full">
+            {selectedItems
+              ?.filter((item) => item?.type === "table")
+              ?.map((table) => {
+                return (
+                  <div className="flex flex-col w-fit gap-2 p-4 border border-blue-700">
+                    <label>Change Table Color: {table?.title}</label>
+                    <input
+                      type="color"
+                      value={
+                        watch("selectedTablePart")[table.id] === "header"
+                          ? selectedItems.find((item) => item.id === table.id)
+                              ?.headerBgColor || "#dddddd"
+                          : selectedItems.find((item) => item.id === table.id)
+                              ?.rowBgColor || "#dddddd"
+                      }
+                      onChange={(e) => {
+                        const isHeader =
+                          watch("selectedTablePart")[table.id] === "header";
+                        setSelectedItems((prevItems) =>
+                          prevItems.map((item) =>
+                            item.id === table?.id
+                              ? {
+                                  ...item,
+                                  [isHeader ? "headerBgColor" : "rowBgColor"]:
+                                    e.target.value,
+                                }
+                              : item
+                          )
+                        );
+                      }}
+                      className="w-20 h-8"
+                    />
+                    <div className="w-[200px] gap-2 justify-between flex">
+                      <button
+                        className={`h-[44px] w-1/2 border ${
+                          watch("selectedTablePart")[table.id] === "header"
+                            ? "bg-blue-500 text-white"
+                            : ""
+                        }`}
+                        onClick={() => {
+                          setValue("selectedTablePart", {
+                            ...watch("selectedTablePart"),
+                            [table.id]: "header",
+                          });
+                        }}
+                      >
+                        Header
+                      </button>
+                      <button
+                        className={`h-[44px] w-1/2 border ${
+                          watch("selectedTablePart")[table.id] === "row"
+                            ? "bg-blue-500 text-white"
+                            : ""
+                        }`}
+                        onClick={() => {
+                          setValue("selectedTablePart", {
+                            ...watch("selectedTablePart"),
+                            [table.id]: "row",
+                          });
+                        }}
+                      >
+                        Row
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         </div>
         <div className="flex gap-4">
@@ -1148,6 +1253,44 @@ const View = () => {
                                     handleSizeChange(Number(editSize))
                                   } // เพิ่ม onBlur
                                 />
+                                <div className="flex gap-1 w-full justify-between">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedItems((prev) =>
+                                        prev.map((prevItem) =>
+                                          prevItem.id === item.id // เปรียบเทียบกับ item.id ที่มาจาก parent
+                                            ? { ...prevItem, isBold: false }
+                                            : prevItem
+                                        )
+                                      );
+                                    }}
+                                    className={`h-[44px] w-1/2 border ${
+                                      !item?.isBold
+                                        ? "bg-blue-500 text-white"
+                                        : ""
+                                    }`}
+                                  >
+                                    Normal
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedItems((prev) =>
+                                        prev.map((prevItem) =>
+                                          prevItem.id === item.id // เปรียบเทียบกับ item.id ที่มาจาก parent
+                                            ? { ...prevItem, isBold: true }
+                                            : prevItem
+                                        )
+                                      );
+                                    }}
+                                    className={`h-[44px] w-1/2 border ${
+                                      item?.isBold
+                                        ? "bg-blue-500 text-white"
+                                        : ""
+                                    }`}
+                                  >
+                                    Bold
+                                  </button>
+                                </div>
                               </div>
                             ) : (
                               <button
@@ -1174,6 +1317,7 @@ const View = () => {
                         className="flex flex-col gap-1 relative items-start justify-center"
                         width={item?.width}
                         fontSize={item?.size}
+                        isBold={item?.isBold}
                         onClick={(e) => {
                           if (mode === "drag") {
                             handleItemClick(item.id, item.width, item?.size);
@@ -1203,6 +1347,7 @@ const ItemContainer = styled.div<any>`
   cursor: ${(props) => (props.isDragMode ? "move" : "default")};
   transition: all 0.2s ease;
   font-size: ${(props) => `${props?.fontSize}px`};
+  font-weight: ${({ isBold }) => (isBold ? 600 : 400)};
 
   &:hover {
     border-color: ${(props) => (props.isDragMode ? "#2196f3" : "red")};
