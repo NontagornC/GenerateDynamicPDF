@@ -382,4 +382,30 @@ export const mockData2 = {
       fileSizeUnit: "byte",
     },
   ],
+  mockTable: [
+    {
+      column1: "column1 Hello",
+      column2: "column2 Hello",
+      column3: "column3 Hello",
+      column4: "column4 Hello",
+    },
+    {
+      column1: "column1 Hello",
+      column2: "column2 Hello",
+      column3: "column3 Hello",
+      column4: "column4 Hello",
+    },
+    {
+      column1: "column1 Hello",
+      column2: "column2 Hello",
+      column3: "column3 Hello",
+      column4: "column4 Hello",
+    },
+    {
+      column1: "column1 Hello",
+      column2: "column2 Hello",
+      column3: "column3 Hello",
+      column4: "column4 Hello",
+    },
+  ],
 };

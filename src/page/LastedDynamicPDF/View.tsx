@@ -128,7 +128,7 @@ const View = () => {
 
   useEffect(() => {
     if (mockData && mockData?.length > 0) {
-      const keyArr = findKeyValue(mockData[0]);
+      const keyArr = findKeyValue(mockData2);
       setKeyArr(keyArr);
     }
   }, [mockData]);
@@ -1109,7 +1109,7 @@ const View = () => {
             </div>
           </div>
 
-          <div className="flex justify-between items-center w-full">
+          <div className="flex items-center w-full flex-col">
             {selectedItems
               ?.filter((item) => item?.type === "table")
               ?.map((table) => {
@@ -1174,7 +1174,7 @@ const View = () => {
                         Row
                       </button>
                     </div>
-                    <div className="grid w-full gap-2 grid-cols-3 border border-blue-200">
+                    <div className="grid w-full gap-2 grid-cols-2 border border-blue-200">
                       {table?.tableColumn &&
                         table?.tableColumn?.length > 0 &&
                         table?.tableColumn?.map((tableKey) => {
@@ -1183,8 +1183,42 @@ const View = () => {
                           return (
                             <div
                               key={key}
-                              className="flex items-center justify-between gap-4 p-2"
+                              className="flex items-center justify-between gap-4 p-2 border border-red-600 relative"
                             >
+                              <span
+                                onClick={() => {
+                                  setSelectedItems((prev) =>
+                                    prev.map((selectItem) => {
+                                      if (selectItem?.id === table?.id) {
+                                        // 1. ลบ column จาก tableColumn
+                                        const newTableColumn =
+                                          selectItem.tableColumn.filter(
+                                            (col) => Object.keys(col)[0] !== key
+                                          );
+
+                                        // 2. ลบ column จาก data ทุกก้อน
+                                        const newData = selectItem.data.map(
+                                          (row) => {
+                                            const newRow = { ...row };
+                                            delete newRow[key];
+                                            return newRow;
+                                          }
+                                        );
+
+                                        return {
+                                          ...selectItem,
+                                          tableColumn: newTableColumn,
+                                          data: newData,
+                                        };
+                                      }
+                                      return selectItem;
+                                    })
+                                  );
+                                }}
+                                className="w-[20px] cursor-pointer h-[20px] flex justify-center items-center absolute -top-2 -right-2 bg-red-600 text-white rounded-full"
+                              >
+                                X
+                              </span>
                               <span className="min-w-48 font-medium text-gray-700">
                                 {key}:
                               </span>
