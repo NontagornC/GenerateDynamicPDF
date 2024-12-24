@@ -197,16 +197,6 @@ const View = () => {
     setCurrentLine(null);
   };
 
-  const getValuesByKey = (data, key) => {
-    return data.map((item) => item[key] || "-");
-  };
-  const getValuesByKey2 = (data, key) => {
-    if (Array.isArray(data)) {
-      return data[0]?.[key];
-    }
-    return data[key];
-  };
-
   const getValuesByKeyInObject = (objectData, key) => {
     return objectData[key] || null;
   };
@@ -252,35 +242,69 @@ const View = () => {
     );
   };
 
-  const handleCheckboxChange = (item: string) => {
-    console.log(item, "item");
-    const dataValue = getValuesByKey2(mockData2, item);
+  const getValuesByKey = (data, key) => {
+    return data.map((item) => item[key] || "-");
+  };
+
+  const getValuesByKey2 = (data, key) => {
+    if (Array.isArray(data)) {
+      return data[0]?.[key];
+    }
+    return data[key];
+  };
+
+  const getKeyObjectByMainKey = (data, key) => {
+    const maxWidth = 450;
+    if (data && key && data[key] && data[key]?.length > 0) {
+      if (
+        Object?.keys(data[key][0]) &&
+        Object?.keys(data[key][0])?.length > 0
+      ) {
+        const keyArray = Object?.keys(data[key][0]);
+        return keyArray?.map((item) => {
+          return {
+            [item]: maxWidth / keyArray?.length,
+          };
+        });
+      }
+    }
+  };
+
+  const handleCheckboxChange = (key: string) => {
+    console.log(key, "item");
+    const dataValue = getValuesByKey2(mockData2, key);
     const isTable = checkTableDataFormat(dataValue);
+    let tableColumnWidth = null;
+    console.log(dataValue, "dataVelue");
+    if (isTable) {
+      console.log(mockData2, "mock2");
+      console.log(getKeyObjectByMainKey(mockData2, key), "mock 333");
+      tableColumnWidth = getKeyObjectByMainKey(mockData2, key);
+    }
 
     setSelectedItems((prev) => {
-      const foundItem = prev.find((i) => i.id === item);
+      const foundItem = prev.find((i) => i.id === key);
       if (foundItem) {
         setTooltipOpen((prevTooltip) => {
-          const { [item]: removed, ...rest } = prevTooltip;
+          const { [key]: removed, ...rest } = prevTooltip;
           return rest;
         });
-        return prev.filter((i) => i.id !== item);
+        return prev.filter((i) => i.id !== key);
       } else {
         setTooltipOpen((prevTooltip) => ({
           ...prevTooltip,
-          [item]: false,
+          [key]: false,
         }));
-
+        // 450 maximum
         const newItem = {
-          key: item,
-          id: item,
-          title: item,
+          key: key,
+          id: key,
+          title: key,
           type: isTable ? "table" : "key",
           data: dataValue,
           left: 0,
           top: 0,
           size: 16,
-          width: 100,
         };
 
         if (isTable) {
@@ -290,6 +314,8 @@ const View = () => {
               ...newItem,
               headerBgColor: null,
               rowBgColor: null,
+              width: 450,
+              tableColumn: tableColumnWidth,
             },
           ];
         } else {
@@ -297,6 +323,7 @@ const View = () => {
             ...prev,
             {
               ...newItem,
+              width: 100,
               isBold: false,
             },
           ];
@@ -378,6 +405,63 @@ const View = () => {
         item?.type === "table"
     );
 
+    const createTableContents = tableData.map((table) => {
+      const headers = table?.data?.[0] ? Object.keys(table.data[0]) : [];
+      const rows = table?.data?.map((item) => Object.values(item)) || [];
+
+      const columnWidths = table?.tableColumn
+        ? table.tableColumn.map((col) => Object.values(col)[0])
+        : Array(headers.length).fill(Number(table?.width) / headers?.length);
+
+      return {
+        absolutePosition: {
+          x: table?.left,
+          y: table?.top,
+        },
+        table: {
+          pageBreak: "after",
+          body: [
+            headers.map((header) => ({
+              text: returnManualTruncateText(
+                header,
+                columnWidths[headers.indexOf(header)],
+                8
+              ),
+              title: header,
+              style: "tableHeader",
+              bold: true,
+              noWrap: true,
+              fillColor: table?.headerBgColor || null,
+            })),
+            ...rows.map((row) =>
+              row.map((cell, index) => ({
+                text: returnManualTruncateText(cell, columnWidths[index], 6),
+                title: cell,
+                style: "tableCell",
+                noWrap: true,
+                fillColor: table?.rowBgColor || null,
+              }))
+            ),
+          ],
+          widths: columnWidths,
+        },
+        layout: {
+          hLineWidth: function (i, node) {
+            return 1;
+          },
+          vLineWidth: function (i, node) {
+            return 1;
+          },
+          hLineColor: function (i, node) {
+            return "#aaa";
+          },
+          vLineColor: function (i, node) {
+            return "#aaa";
+          },
+        },
+      };
+    });
+
     console.log(tableData, "tableData");
 
     const headers = tableData?.[0]?.data?.[0]
@@ -408,7 +492,7 @@ const View = () => {
           })),
           ...rows.map((row) =>
             row.map((cell) => ({
-              // text: truncateText(cell, MAX_CHAR_COUNT),
+              // text: truncateText(cell, MAX_CHAR_COUNT,'fontSize'),
               text: returnManualTruncateText(cell, columnsWidth, 6),
               title: cell,
               style: "tableCell",
@@ -589,7 +673,7 @@ const View = () => {
       content: [
         ...imageContent,
         ...mainContent,
-        tableContent,
+        ...createTableContents,
         {
           text: "",
           margin: [0, 0, 0, watch("footerHeight")],
@@ -912,13 +996,12 @@ const View = () => {
             {LineControls()}
             <div className="flex flex-col gap-2">
               <>
-                <Container
-                  maxWidth={160}
+                <div
                   onClick={onChooseFile}
-                  className="flex w-full cursor-pointer items-center justify-center rounded-lg border border-outline-grey bg-info-state-on-default px-4 py-[10px] font-semibold leading-6"
+                  className="flex max-w-[160px] w-full cursor-pointer items-center justify-center rounded-lg border border-outline-grey bg-info-state-on-default px-4 py-[10px] font-semibold leading-6"
                 >
                   อัปโหลดรูปภาพ
-                </Container>
+                </div>
                 <input
                   type="file"
                   ref={inputUploadRef}
@@ -1031,7 +1114,7 @@ const View = () => {
               ?.filter((item) => item?.type === "table")
               ?.map((table) => {
                 return (
-                  <div className="flex flex-col w-fit gap-2 p-4 border border-blue-700">
+                  <div className="flex flex-col gap-2 p-4 border border-blue-700 w-full">
                     <label>Change Table Color: {table?.title}</label>
                     <input
                       type="color"
@@ -1059,7 +1142,7 @@ const View = () => {
                       }}
                       className="w-20 h-8"
                     />
-                    <div className="w-[200px] gap-2 justify-between flex">
+                    <div className=" gap-2 justify-between flex">
                       <button
                         className={`h-[44px] w-1/2 border ${
                           watch("selectedTablePart")[table.id] === "header"
@@ -1091,12 +1174,63 @@ const View = () => {
                         Row
                       </button>
                     </div>
+                    <div className="grid w-full gap-2 grid-cols-3 border border-blue-200">
+                      {table?.tableColumn &&
+                        table?.tableColumn?.length > 0 &&
+                        table?.tableColumn?.map((tableKey) => {
+                          const key = Object.keys(tableKey)[0];
+                          const value = tableKey[key];
+                          return (
+                            <div
+                              key={key}
+                              className="flex items-center justify-between gap-4 p-2"
+                            >
+                              <span className="min-w-48 font-medium text-gray-700">
+                                {key}:
+                              </span>
+                              <InputNumber
+                                disabled={false}
+                                register={register}
+                                registerName={`columnWidth${key}`}
+                                initValue={Number(value) || 0}
+                                textPosition={"right"}
+                                onBlur={(newValue: string) => {
+                                  setSelectedItems((prev) =>
+                                    prev.map((selectItem) => {
+                                      if (selectItem?.id === table?.id) {
+                                        return {
+                                          ...selectItem,
+                                          tableColumn:
+                                            selectItem.tableColumn.map(
+                                              (col) => {
+                                                const colKey =
+                                                  Object.keys(col)[0];
+                                                if (colKey === key) {
+                                                  return {
+                                                    [key]: Number(newValue),
+                                                  };
+                                                }
+                                                return col;
+                                              }
+                                            ),
+                                        };
+                                      }
+                                      return selectItem;
+                                    })
+                                  );
+                                }}
+                                toFixed={2}
+                              />
+                            </div>
+                          );
+                        })}
+                    </div>
                   </div>
                 );
               })}
           </div>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 mt-4">
           <div className="flex flex-1 min-w-[100px] max-h-screen overflow-auto min-h-full p-4 bg-blue-200 rounded-3xl flex-col">
             {useKeyArr &&
               useKeyArr.length > 0 &&
@@ -1348,6 +1482,7 @@ const ItemContainer = styled.div<any>`
   transition: all 0.2s ease;
   font-size: ${(props) => `${props?.fontSize}px`};
   font-weight: ${({ isBold }) => (isBold ? 600 : 400)};
+  border: 1px solid red;
 
   &:hover {
     border-color: ${(props) => (props.isDragMode ? "#2196f3" : "red")};
@@ -1355,14 +1490,6 @@ const ItemContainer = styled.div<any>`
   & > * {
     z-index: 2;
   }
-`;
-
-interface IContainerProps {
-  maxWidth: number;
-}
-
-const Container = styled.div<IContainerProps>`
-  max-width: ${(props) => (props.maxWidth ? `${props.maxWidth}px` : "160px")};
 `;
 
 const ImageItem = styled.img<any>`
